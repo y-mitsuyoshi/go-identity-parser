@@ -200,11 +200,11 @@ func (p *JPDriverLicenseParser) postProcessExtractedData(data map[string]string)
 func initJPDriverLicensePatterns() map[string]*regexp.Regexp {
 	patterns := make(map[string]*regexp.Regexp)
 
-	// Name pattern (氏名) - 設計書の例に基づく
-	patterns["name"] = regexp.MustCompile(`氏名\s*([^\s]+\s+[^\s]+)`)
+	// Name pattern (氏名) - Improved to be more flexible
+	patterns["name"] = regexp.MustCompile(`(?:氏\s*名|氏名)\s*[:：]?\s*([\p{Han}ー\p{Hiragana}\p{Katakana}\s]+)`)
 
-	// Address pattern (住所) - 設計書の例に基づく
-	patterns["address"] = regexp.MustCompile(`住所\s*([^\n]+)`)
+	// Address pattern (住所) - Improved to be more specific and less greedy
+	patterns["address"] = regexp.MustCompile(`(?:住所|住\s*所)\s*[:：]?\s*([\p{Han}0-9０-９\s\p{Hiragana}\p{Katakana}丁目番地‐−]+)`)
 
 	// Birth date pattern (生年月日) - 設計書の例に基づく
 	patterns["birth_date"] = regexp.MustCompile(`生年月日\s*([^\s]+)`)
@@ -253,18 +253,3 @@ func (p *JPDriverLicenseParser) validateExtractedData(data map[string]string) er
 	return nil
 }
 
-// Validation helper function for license number
-func isValidLicenseNumber(text string) bool {
-	// Remove spaces and check if it's 12 digits
-	cleaned := strings.ReplaceAll(text, " ", "")
-	if len(cleaned) != 12 {
-		return false
-	}
-	// Check if all characters are digits
-	for _, r := range cleaned {
-		if r < '0' || r > '9' {
-			return false
-		}
-	}
-	return true
-}
