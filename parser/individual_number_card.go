@@ -111,69 +111,6 @@ func (p *IndividualNumberCardParser) parseWithRegionDetection(mat imageprocessor
 	return extractedData, nil
 }
 
-// Validation helper functions
-func isValidName(text string) bool {
-	if len(text) < 2 || len(text) > 20 {
-		return false
-	}
-	// Check if text contains only valid Japanese characters for names
-	return !strings.ContainsAny(text, "0123456789年月日都道府県市区町村")
-}
-
-func isValidAddress(text string) bool {
-	if len(text) < 5 {
-		return false
-	}
-	// Check if text contains address indicators
-	return strings.ContainsAny(text, "都道府県市区町村")
-}
-
-func isValidDate(text string) bool {
-	// Check for Japanese date format
-	return strings.Contains(text, "年") && strings.Contains(text, "月")
-}
-
-func isValidIndividualNumber(text string) bool {
-	if len(text) != 12 {
-		return false
-	}
-	// Check if all characters are digits
-	for _, r := range text {
-		if r < '0' || r > '9' {
-			return false
-		}
-	}
-	return true
-}
-
-// Enhanced extraction functions
-func extractMunicipalityFromRegions(regions []ocr.RegionInfo) string {
-	for _, region := range regions {
-		if strings.Contains(region.Text, "都") || strings.Contains(region.Text, "県") ||
-			strings.Contains(region.Text, "市") || strings.Contains(region.Text, "区") {
-			// Clean up the municipality text
-			municipality := strings.TrimSpace(region.Text)
-			if len(municipality) >= 3 && len(municipality) <= 20 {
-				return municipality
-			}
-		}
-	}
-	return ""
-}
-
-func extractNameFromRegions(regions []ocr.RegionInfo) string {
-	for _, region := range regions {
-		if region.Category == "name" || (len(region.Text) >= 2 && len(region.Text) <= 10 &&
-			!strings.ContainsAny(region.Text, "0123456789年月日都道府県市区町村個人番号")) {
-			name := strings.TrimSpace(region.Text)
-			if isValidName(name) {
-				return name
-			}
-		}
-	}
-	return ""
-}
-
 // parseTextWithRegex extracts structured data from OCR text using regex patterns
 func (p *IndividualNumberCardParser) parseTextWithRegex(ocrText string) (map[string]string, error) {
 	extractedData := make(map[string]string)
