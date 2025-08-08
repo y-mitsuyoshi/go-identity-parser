@@ -1,0 +1,96 @@
+# マルチステージビルド - 開発用Dockerfile
+FROM ubuntu:24.04 AS base
+
+# 開発に必要なツールをインストール
+RUN apt-get update && apt-get install -y \
+    golang-1.21 \
+    git \
+    curl \
+    bash \
+    make \
+    build-essential \
+    pkg-config \
+    && rm -rf /var/lib/apt/lists/*
+
+# Goのパスを設定
+ENV PATH="/usr/lib/go-1.21/bin:${PATH}"
+ENV GOPATH="/go"
+ENV GOROOT="/usr/lib/go-1.21"
+ENV PATH="${GOPATH}/bin:${PATH}"
+
+# Air（ホットリロード）をインストール - Go 1.21 compatible version
+RUN go install github.com/cosmtrek/air@v1.49.0
+
+# 作業ディレクトリを設定
+WORKDIR /app
+
+# Go modulesファイルをコピーして依存関係をダウンロード
+COPY go.mod go.sum ./
+RUN go mod download
+
+# 開発ステージ
+FROM base AS development
+
+# 開発用パッケージをインストール
+RUN apt-get update && apt-get install -y \
+    tesseract-ocr \
+    tesseract-ocr-jpn \
+    tesseract-ocr-eng \
+    && rm -rf /var/lib/apt/lists/*
+
+# ソースコードをマウントポイントにコピー（開発時はvolumeでマウント）
+COPY . .
+
+# 開発サーバーを起動
+EXPOSE 8080
+CMD ["air", "-c", ".air.toml"]
+
+# テストステージ
+FROM development AS testing
+
+# テスト実行
+CMD ["go", "test", "-v", "./..."]
+
+# ビルドステージ
+FROM base AS builder
+
+# ソースコードをコピー
+COPY . .
+
+# アプリケーションをビルド
+RUN go build -o ocr-api .
+
+# 本番用ステージ
+FROM ubuntu:24.04 AS production
+
+# パッケージリストを更新し、必要なライブラリをインストール
+RUN apt-get update && apt-get install -y \
+    tesseract-ocr \
+    tesseract-ocr-jpn \
+    tesseract-ocr-eng \
+    ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+
+# ビルドステージからバイナリをコピー
+COPY --from=builder /app/ocr-api /usr/local/bin/ocr-api
+
+# 実行権限を付与
+RUN chmod +x /usr/local/bin/ocr-api
+
+# 非rootユーザーを作成
+RUN useradd -r -s /bin/false ocr
+USER ocr
+
+# ポート8080を公開
+EXPOSE 8080
+
+# 環境変数のデフォルト値を設定
+ENV PORT=8080
+ENV LOG_LEVEL=INFO
+
+# ヘルスチェック
+HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
+    CMD curl -f http://localhost:${PORT}/health || exit 1
+
+# アプリケーションを実行
+CMD ["ocr-api"]

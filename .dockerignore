@@ -1,0 +1,20 @@
+# Git関連
+.git
+.gitignore
+
+# Kiro関連
+.kiro
+
+# ドキュメント
+README.md
+LICENSE
+
+# テストファイル
+*_test.go
+
+# ビルド成果物
+ocr-api
+
+# その他
+.DS_Store
+*.log

@@ -1,0 +1,65 @@
+version: '3.8'
+
+services:
+  # 開発用サービス
+  ocr-api-dev:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+      target: development
+    ports:
+      - "8080:8080"
+    volumes:
+      - .:/app
+      - go-mod-cache:/go/pkg/mod
+    environment:
+      - PORT=8080
+      - LOG_LEVEL=DEBUG
+      - GO_ENV=development
+    working_dir: /app
+    command: air -c .air.toml
+    depends_on:
+      - tesseract
+
+  # 本番用サービス
+  ocr-api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8080:8080"
+    environment:
+      - PORT=8080
+      - LOG_LEVEL=INFO
+    depends_on:
+      - tesseract
+
+  # Tesseract OCRサービス（共通）
+  tesseract:
+    image: ubuntu:24.04
+    volumes:
+      - tesseract-data:/usr/share/tesseract-ocr
+    command: |
+      bash -c "
+        apt-get update && 
+        apt-get install -y tesseract-ocr tesseract-ocr-jpn tesseract-ocr-eng &&
+        tail -f /dev/null
+      "
+
+  # テスト実行用サービス
+  test:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+      target: testing
+    volumes:
+      - .:/app
+      - go-mod-cache:/go/pkg/mod
+    working_dir: /app
+    command: go test -v ./...
+    depends_on:
+      - tesseract
+
+volumes:
+  go-mod-cache:
+  tesseract-data:
